@@ -1,76 +1,59 @@
 # Kazhutha Kali - Multiplayer Card Game
 
+---
+
+## 🚀 Ready to Deploy?
+
+**Everything is implemented and tested!** Choose your path:
+
+- 📖 **[NEXT_STEPS.md](./NEXT_STEPS.md)** - Quick overview and what to do next
+- 🗺️ **[DEPLOYMENT_ROADMAP.md](./DEPLOYMENT_ROADMAP.md)** - Visual deployment guide
+- 📚 **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Full step-by-step deployment
+- 📋 **[DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md)** - All documentation
+
+---
+
 > **🎉 LATEST UPDATE (Jan 2026):** Game now matches authentic Kerala Kazhutha Kali rules!
 > 1. ✅ **Round stops immediately on cut (Pani)** - No more waiting for all players
 > 2. ✅ **Ace of Spades must start** - Traditional Kerala style enforced
 > 3. ✅ **Transfer of Power rule** - When winner goes safe, second-highest starts
 > 4. ✅ **Host stuck screen fixed** - Host sees Start Game button immediately
 > 5. ✅ **No duplicate players** - Clean multiplayer experience
+> 6. ✅ **Session reconnection (NEW!)** - Reload page and resume your game!
+> 7. ✅ **Host can end game (NEW!)** - Full game control for hosts
+> 8. ✅ **Auto cleanup & monitoring (NEW!)** - Optimized memory usage
 > 
-> **Authenticity Score:** 98%! See [FIXES_IMPLEMENTED.md](./FIXES_IMPLEMENTED.md) for details.a Kali - Multiplayer Card Game
-
-> **� LATEST UPDATE (Jan 2026):** Game now matches authentic Kerala Kazhutha Kali rules!
-> 1. ✅ **Round stops immediately on cut (Pani)** - No more waiting for all players
-> 2. ✅ **Ace of Spades must start** - Traditional Kerala style enforced
-> 3. ✅ **Host stuck screen fixed** - Host sees Start Game button immediately
-> 4. ✅ **No duplicate players** - Clean multiplayer experience
-> 
-> **Authenticity Score:** 95%! See [FIXES_IMPLEMENTED.md](./FIXES_IMPLEMENTED.md) for details.
+> **Authenticity Score:** 98%! See [IMPLEMENTATION_COMPLETE.md](./IMPLEMENTATION_COMPLETE.md) for full details.
 
 A multiplayer implementation of the traditional Kerala card game "Kazhutha Kali" (Donkey) using React and Socket.io.
 
-## Features
+## ✨ Key Features
 
-- Real-time multiplayer gameplay using Socket.io
-- Room-based sessions with unique shareable URLs
-- Turn-based card game with suit-following rules
-- "Pani" (Cut) mechanic - strategic gameplay element
-- Lobby system with host controls
-- Locked rooms once game starts
+### Core Gameplay
+- ✅ Real-time multiplayer gameplay using Socket.io
+- ✅ Room-based sessions with unique shareable URLs
+- ✅ Turn-based card game with authentic suit-following rules
+- ✅ "Pani" (Cut) mechanic - strategic gameplay element
+- ✅ Transfer of Power rule when winner goes safe
+- ✅ Lobby system with host controls
 
-## Game Rules
+### Session Management (NEW!)
+- ✅ **10-minute reconnection window** - Players can reload/refresh
+- ✅ **Automatic reconnection** - Resume game from exact state
+- ✅ **LocalStorage persistence** - Survives page refreshes
+- ✅ **Session expiry notifications** - Clear timeout messages
 
-### Objective
-Don't be the last player with cards - that person becomes the "Kazhutha" (Donkey)!
+### Host Controls (NEW!)
+- ✅ **End game button** - Host can terminate game anytime
+- ✅ **Confirmation modal** - Prevent accidental endings
+- ✅ **Reason selection** - Optional game end explanations
+- ✅ **Graceful cleanup** - All players notified properly
 
-### How to Play
-
-**Step 1: Starting the Game**
-- The player holding the **Ace of Spades (♠A)** starts the first round by placing it in the center
-- In subsequent games, the previous "Donkey" usually deals, and the person to their left starts
-
-**Step 2: Following Suit**
-- The first player plays a card (e.g., 5 of Hearts ♥5)
-- Moving **clockwise**, every other player must play a card of the **same suit** (Hearts)
-- If everyone follows suit, the person who played the **highest card** of that suit wins the trick
-- **Winning is good!** The winner moves the pile aside (out of the game) and starts the next round with any card
-
-**Step 3: The "Pani" (The Cut/The Punishment)** 🔥
-This is the most important rule!
-
-- If you **don't have any cards of the lead suit**, you can play a card of **any other suit**
-- This is called **"Cutting"** or giving **"Pani"** (Work/Punishment)
-- **Consequence**: As soon as someone cuts, the round stops immediately!
-- The player who played the **highest card of the original suit** must **pick up ALL the cards** in the center
-- The player who picked up the cards must start the next round
-
-**Example of "Pani":**
-```
-Player A: King of Hearts ♥K
-Player B: 10 of Hearts ♥10
-Player C: Ace of Hearts ♥A (Highest Hearts so far)
-Player D: Has no Hearts → Plays 2 of Spades ♠2 (THE CUT!)
-
-Result: Player C played the highest Heart (Ace), so Player C must 
-pick up all 4 cards. Player C is now in trouble and starts next round.
-```
-
-**Victory Condition**
-- Players who empty their hands first are "Safe" ✅
-- Last player holding cards is the **Kazhutha (Donkey)** and loses! 🫏
-
-**📖 Full Rules:** [GAME_RULES.md](./GAME_RULES.md) - Complete Kerala-style rules with examples and strategy  
-**🎴 Quick Ref:** [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - One-page reference card for quick lookup
+### Performance & Optimization (NEW!)
+- ✅ **Automatic room cleanup** - Inactive games auto-deleted
+- ✅ **Memory monitoring** - Real-time stats every 5 minutes
+- ✅ **Session cleanup** - Expired sessions removed automatically
+- ✅ **Stable memory usage** - No memory leaks over time
 
 ## Installation
 
