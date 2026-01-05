@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getSocket } from '../services/socket';
+import { getSocket, saveSession, getSession, attemptReconnection, clearSession } from '../services/socket';
 import Card from './Card';
 import PlayerHand from './PlayerHand';
+import EndGameModal from './EndGameModal';
+import GameEndedOverlay from './GameEndedOverlay';
 import './GameRoom.css';
 
 function GameRoom() {
@@ -17,7 +19,18 @@ function GameRoom() {
   const [error, setError] = useState('');
   const [notification, setNotification] = useState('');
   const [myPlayerId, setMyPlayerId] = useState(socket.id || '');
+  const [mySessionId, setMySessionId] = useState('');
   const isHostFromHome = location.state?.isHost || false;
+  
+  // New state for host end game
+  const [showEndGameModal, setShowEndGameModal] = useState(false);
+  const [endingGame, setEndingGame] = useState(false);
+  const [gameEndedByHost, setGameEndedByHost] = useState(false);
+  const [gameEndReason, setGameEndReason] = useState('');
+  
+  // Reconnection state
+  const [reconnecting, setReconnecting] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   
   // Use ref to prevent multiple join attempts
   const hasAttemptedJoin = useRef(false);
@@ -38,17 +51,19 @@ function GameRoom() {
       }
     });
 
-    socket.on('room_created', ({ roomId, room }) => {
+    socket.on('room_created', ({ roomId, room, sessionId }) => {
       console.log('Room created event received');
       setRoom(room);
       setHasJoined(true);
+      setMySessionId(sessionId);
       hasAttemptedJoin.current = true; // Mark as joined
     });
 
-    socket.on('room_joined', ({ room }) => {
+    socket.on('room_joined', ({ room, sessionId }) => {
       console.log('Room joined event received');
       setRoom(room);
       setHasJoined(true);
+      setMySessionId(sessionId);
     });
 
     socket.on('room_state', ({ room }) => {
@@ -98,6 +113,43 @@ function GameRoom() {
       setError(message);
     });
 
+    // New socket event listeners
+    socket.on('player_disconnected', ({ playerName, canReconnect, timeoutMinutes }) => {
+      showNotification(`${playerName} disconnected (can reconnect within ${timeoutMinutes} min)`);
+    });
+
+    socket.on('player_reconnected', ({ playerName }) => {
+      showNotification(`${playerName} reconnected! 🔄`);
+    });
+
+    socket.on('player_removed', ({ playerId, reason }) => {
+      if (reason === 'session_expired') {
+        showNotification('A player was removed (session expired)');
+      }
+    });
+
+    socket.on('game_ended_by_host', ({ reason, endedBy }) => {
+      setGameEndedByHost(true);
+      setGameEndReason(reason);
+      showNotification(`Game ended by ${endedBy}`);
+      clearSession();
+    });
+
+    socket.on('game_end_success', () => {
+      setEndingGame(false);
+      setShowEndGameModal(false);
+    });
+
+    socket.on('game_end_error', ({ message }) => {
+      alert(message);
+      setEndingGame(false);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+      setReconnecting(true);
+    });
+
     // Only auto-join if already connected, have player name, and NOT the host
     if (socket.connected && playerName && !hasAttemptedJoin.current && !isHostFromHome) {
       console.log('Socket already connected, joining room:', roomId);
@@ -122,8 +174,50 @@ function GameRoom() {
       socket.off('game_updated');
       socket.off('player_left');
       socket.off('error');
+      socket.off('player_disconnected');
+      socket.off('player_reconnected');
+      socket.off('player_removed');
+      socket.off('game_ended_by_host');
+      socket.off('game_end_success');
+      socket.off('game_end_error');
+      socket.off('disconnect');
     };
   }, []); // Empty dependencies - only run once on mount
+
+  // Save session when we get sessionId
+  useEffect(() => {
+    if (mySessionId && roomId && playerName) {
+      saveSession(mySessionId, roomId, playerName);
+    }
+  }, [mySessionId, roomId, playerName]);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    const existingSession = getSession();
+    if (existingSession && existingSession.roomId === roomId && !hasJoined) {
+      console.log('Found existing session, attempting reconnection...');
+      setReconnecting(true);
+      setPlayerName(existingSession.playerName);
+      
+      attemptReconnection(existingSession.sessionId, existingSession.roomId)
+        .then((data) => {
+          console.log('Reconnection successful!', data);
+          setRoom(data.room);
+          setHasJoined(true);
+          setReconnecting(false);
+          setMySessionId(existingSession.sessionId);
+          showNotification('Reconnected successfully! 🔄');
+        })
+        .catch((error) => {
+          console.log('Reconnection failed:', error);
+          setReconnecting(false);
+          clearSession();
+          if (error.reason === 'session_expired') {
+            setSessionExpired(true);
+          }
+        });
+    }
+  }, []);
 
   const showNotification = (message) => {
     setNotification(message);
@@ -159,6 +253,43 @@ function GameRoom() {
     navigator.clipboard.writeText(link);
     showNotification('Room link copied to clipboard!');
   };
+
+  const handleEndGame = (reason) => {
+    setEndingGame(true);
+    socket.emit('host_end_game', { roomId, reason });
+  };
+
+  // Show reconnecting state
+  if (reconnecting) {
+    return (
+      <div className="game-room-container">
+        <div className="join-prompt fade-in">
+          <div className="card-container text-center">
+            <h2>Reconnecting...</h2>
+            <p>Please wait while we restore your session</p>
+            <div className="loading-spinner mt-3"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show session expired state
+  if (sessionExpired) {
+    return (
+      <div className="game-room-container">
+        <div className="join-prompt fade-in">
+          <div className="card-container text-center">
+            <h2>Session Expired</h2>
+            <p>Your session has expired after 10 minutes of inactivity</p>
+            <button onClick={() => navigate('/')} className="btn-primary mt-3">
+              Return to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!hasJoined) {
     // If player name was provided from Home screen, show loading while auto-joining
@@ -235,7 +366,7 @@ function GameRoom() {
   const myPlayer = room.players.find(p => p.id === myPlayerId);
   const isMyTurn = room.currentTurn !== undefined && 
                    room.players[room.currentTurn]?.id === myPlayerId;
-  const isHost = room.host === myPlayerId;
+  const isHost = myPlayer?.isHost || false;
   
   // Debug logging
   console.log('My Socket ID:', myPlayerId);
@@ -249,6 +380,31 @@ function GameRoom() {
         <div className="notification fade-in">
           {notification}
         </div>
+      )}
+
+      {/* End Game Button (Host Only) */}
+      {isHost && !room.gameOver && (
+        <button 
+          className="end-game-btn"
+          onClick={() => setShowEndGameModal(true)}
+          disabled={endingGame}
+          title="End the game for all players"
+        >
+          End Game
+        </button>
+      )}
+
+      {/* Modals */}
+      {showEndGameModal && (
+        <EndGameModal
+          onConfirm={handleEndGame}
+          onCancel={() => setShowEndGameModal(false)}
+          isEnding={endingGame}
+        />
+      )}
+
+      {gameEndedByHost && (
+        <GameEndedOverlay reason={gameEndReason} />
       )}
 
       <div className="game-header">
@@ -392,6 +548,37 @@ function GameRoom() {
                 leadSuit={room.leadSuit}
               />
             </div>
+          )}
+
+          {/* End Game Modal for Host */}
+          {isHost && room.gameStarted && (
+            <div className="end-game-container">
+              <button 
+                className="btn-danger btn-large"
+                onClick={() => setShowEndGameModal(true)}
+              >
+                🛑 End Game
+              </button>
+            </div>
+          )}
+
+          {showEndGameModal && (
+            <EndGameModal 
+              onClose={() => setShowEndGameModal(false)}
+              onConfirm={handleEndGame}
+              loading={endingGame}
+            />
+          )}
+
+          {/* Game Ended Overlay */}
+          {gameEndedByHost && (
+            <GameEndedOverlay 
+              reason={gameEndReason}
+              onClose={() => {
+                setGameEndedByHost(false);
+                navigate('/');
+              }}
+            />
           )}
         </div>
       )}
