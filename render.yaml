@@ -1,0 +1,27 @@
+services:
+  # Backend Server
+  - type: web
+    name: kazhutha-kali-server
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server/server.js
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: CLIENT_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+  # Frontend Client
+  - type: web
+    name: kazhutha-kali-client
+    runtime: node
+    rootDir: client
+    buildCommand: npm install && npm run build
+    startCommand: npx serve -s build -p $PORT
+    envVars:
+      - key: REACT_APP_SOCKET_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
