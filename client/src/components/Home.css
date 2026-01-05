@@ -1,0 +1,109 @@
+.home-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.home-content {
+  max-width: 500px;
+  width: 100%;
+}
+
+.game-title {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: white;
+  text-align: center;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  margin-bottom: 8px;
+}
+
+.game-subtitle {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.input-group {
+  margin-bottom: 16px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #555;
+}
+
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.btn-large {
+  padding: 16px 32px;
+  font-size: 18px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 8px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.divider span {
+  padding: 0 16px;
+  color: #999;
+  font-weight: 600;
+}
+
+.error-message {
+  color: #f44336;
+  background: #ffebee;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+  font-weight: 500;
+}
+
+.rules-section {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.rules-section h3 {
+  color: #667eea;
+  margin-bottom: 16px;
+  font-size: 1.5rem;
+}
+
+.rules-section ul {
+  list-style: none;
+}
+
+.rules-section li {
+  padding: 8px 0;
+  color: #555;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .game-title {
+    font-size: 2.5rem;
+  }
+}
