@@ -1,0 +1,359 @@
+.game-room-container {
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: white;
+  padding: 16px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.room-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.room-info h2 {
+  color: #667eea;
+  margin: 0;
+}
+
+.room-info p {
+  margin: 0;
+  color: #666;
+  font-weight: 600;
+}
+
+.btn-small {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.game-status {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.game-status p {
+  margin: 0;
+  font-weight: 600;
+  color: #333;
+}
+
+.lead-suit {
+  font-size: 1.2rem;
+}
+
+.suit-hearts, .suit-diamonds {
+  color: #f44336;
+}
+
+.suit-clubs, .suit-spades {
+  color: #333;
+}
+
+/* Join Prompt */
+.join-prompt {
+  max-width: 500px;
+  margin: 100px auto;
+}
+
+.room-id-display {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  margin-top: 16px;
+}
+
+.room-id-display strong {
+  color: #667eea;
+  font-size: 1.2rem;
+}
+
+/* Lobby */
+.lobby {
+  max-width: 600px;
+  margin: 40px auto;
+}
+
+.player-count {
+  text-align: center;
+  font-size: 1.1rem;
+  color: #666;
+  margin-top: 8px;
+}
+
+.players-list {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.player-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.host-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.waiting-message {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+/* Host Controls */
+.host-controls {
+  text-align: center;
+  background: #f0f8ff;
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px dashed #667eea;
+}
+
+.host-message {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 12px;
+}
+
+.host-controls .btn-success {
+  width: 100%;
+  font-size: 1.2rem;
+  padding: 16px;
+}
+
+/* Game Area */
+.game-area {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.other-players {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.other-player {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.other-player.active-turn {
+  border: 3px solid #667eea;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+}
+
+.other-player.safe {
+  opacity: 0.7;
+  background: #e8f5e9;
+}
+
+.player-info h4 {
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.player-info p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.safe-badge {
+  display: inline-block;
+  background: #4caf50;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.safe-badge.large {
+  font-size: 1rem;
+  padding: 8px 16px;
+}
+
+.turn-indicator {
+  display: inline-block;
+  background: #ff9800;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* Center Pile */
+.center-pile {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pile-cards h4 {
+  text-align: center;
+  color: #667eea;
+}
+
+.cards-row {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.played-card {
+  text-align: center;
+}
+
+.played-card .player-name {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.empty-pile {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+/* My Hand */
+.my-hand-section {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.hand-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hand-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+/* Game Over Modal */
+.game-over-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.game-over-modal .card-container {
+  max-width: 500px;
+  text-align: center;
+}
+
+.game-over-modal h2 {
+  font-size: 2.5rem;
+  color: #667eea;
+  margin-bottom: 16px;
+}
+
+.loser-announcement {
+  font-size: 1.5rem;
+  color: #333;
+  margin: 24px 0;
+}
+
+.loading {
+  text-align: center;
+  color: white;
+  font-size: 1.5rem;
+  margin-top: 100px;
+}
+
+.loading-spinner {
+  padding: 20px;
+}
+
+.loading-spinner p {
+  font-size: 1.1rem;
+  color: #667eea;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@media (max-width: 768px) {
+  .game-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .other-players {
+    grid-template-columns: 1fr;
+  }
+
+  .cards-row {
+    gap: 8px;
+  }
+}

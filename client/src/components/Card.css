@@ -1,0 +1,114 @@
+.playing-card {
+  background: white;
+  border: 2px solid #333;
+  border-radius: 8px;
+  display: inline-flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.playing-card.small {
+  width: 60px;
+  height: 84px;
+  font-size: 0.7rem;
+}
+
+.playing-card.medium {
+  width: 80px;
+  height: 112px;
+  font-size: 0.9rem;
+}
+
+.playing-card.large {
+  width: 100px;
+  height: 140px;
+  font-size: 1.1rem;
+}
+
+.playing-card.red {
+  color: #f44336;
+}
+
+.playing-card.black {
+  color: #333;
+}
+
+.playing-card.clickable {
+  cursor: pointer;
+}
+
+.playing-card.clickable:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  border-color: #667eea;
+}
+
+.playing-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.playing-card.disabled:hover {
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.card-corner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.card-corner.top-left {
+  top: 6px;
+  left: 6px;
+}
+
+.card-corner.bottom-right {
+  bottom: 6px;
+  right: 6px;
+  transform: rotate(180deg);
+}
+
+.card-value {
+  font-size: 1em;
+  margin-bottom: 2px;
+}
+
+.card-suit {
+  font-size: 0.8em;
+}
+
+.card-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.card-suit-large {
+  font-size: 2.5em;
+  opacity: 0.3;
+}
+
+/* Animation for card dealing */
+@keyframes dealCard {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) rotate(-10deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0);
+  }
+}
+
+.playing-card {
+  animation: dealCard 0.3s ease;
+}

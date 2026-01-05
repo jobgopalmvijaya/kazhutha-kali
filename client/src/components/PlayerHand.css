@@ -1,0 +1,67 @@
+.player-hand {
+  width: 100%;
+}
+
+.player-hand.empty {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-style: italic;
+}
+
+.cards-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  padding: 16px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  min-height: 160px;
+}
+
+.card-wrapper {
+  position: relative;
+}
+
+.cannot-play-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.cannot-play-overlay span {
+  font-size: 2rem;
+  color: white;
+  font-weight: bold;
+}
+
+.hint-message {
+  margin-top: 16px;
+  padding: 12px;
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  color: #856404;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  .cards-container {
+    gap: 8px;
+  }
+  
+  .card-wrapper {
+    flex: 0 0 auto;
+  }
+}
