@@ -21,6 +21,17 @@ const PORT = process.env.PORT || 5000;
 // Game rooms storage
 const rooms = new Map();
 
+// Session management storage
+const playerSessions = new Map();
+const sessionTimers = new Map();
+const hostEndCooldowns = new Map();
+
+// Constants
+const SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+const CLEANUP_INTERVAL = 60 * 1000;      // 1 minute
+const ROOM_IDLE_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+const END_GAME_COOLDOWN = 10 * 1000;     // 10 seconds
+
 // Card suits and values
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
 const VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -154,16 +165,21 @@ function calculateTrickResult(centerPile, leadSuit) {
 // Create a new room
 function createRoom(hostSocketId, hostName) {
   const roomId = uuidv4().substring(0, 8);
+  const sessionId = uuidv4();
   
   rooms.set(roomId, {
     id: roomId,
-    host: hostSocketId,
+    host: sessionId,
     players: [{
       id: hostSocketId,
+      sessionId: sessionId,
       name: hostName,
       hand: [],
       isSafe: false,
-      isHost: true
+      isHost: true,
+      isConnected: true,
+      lastActivity: Date.now(),
+      disconnectedAt: null
     }],
     gameStarted: false,
     currentTurn: 0,
@@ -171,7 +187,14 @@ function createRoom(hostSocketId, hostName) {
     leadSuit: null,
     roundNumber: 0,
     gameOver: false,
-    loser: null
+    loser: null,
+    createdAt: Date.now(),
+    lastActivityAt: Date.now(),
+    state: 'waiting',
+    endedBy: null,
+    endReason: null,
+    gameEndedAt: null,
+    scheduledDeletion: null
   });
   
   return roomId;
@@ -200,13 +223,20 @@ function joinRoom(roomId, socketId, playerName) {
     return { success: true, room, alreadyInRoom: true };
   }
   
+  const sessionId = uuidv4();
   room.players.push({
     id: socketId,
+    sessionId: sessionId,
     name: playerName,
     hand: [],
     isSafe: false,
-    isHost: false
+    isHost: false,
+    isConnected: true,
+    lastActivity: Date.now(),
+    disconnectedAt: null
   });
+  
+  updateRoomActivity(roomId);
   
   return { success: true, room };
 }
@@ -409,6 +439,167 @@ function playCard(roomId, playerId, card) {
   }
 }
 
+// =====================================================================
+// SESSION MANAGEMENT & UTILITY FUNCTIONS
+// =====================================================================
+
+// Update room activity timestamp
+function updateRoomActivity(roomId) {
+  const room = rooms.get(roomId);
+  if (room) {
+    room.lastActivityAt = Date.now();
+  }
+}
+
+// Handle player disconnect
+function handlePlayerDisconnect(socketId) {
+  rooms.forEach((room, roomId) => {
+    const player = room.players.find(p => p.id === socketId);
+    
+    if (player) {
+      player.isConnected = false;
+      player.disconnectedAt = Date.now();
+      
+      playerSessions.set(player.sessionId, {
+        roomId: roomId,
+        playerIndex: room.players.indexOf(player),
+        disconnectedAt: Date.now(),
+        expiresAt: Date.now() + SESSION_TIMEOUT
+      });
+      
+      const timer = setTimeout(() => {
+        removeExpiredPlayer(player.sessionId, roomId);
+      }, SESSION_TIMEOUT);
+      
+      sessionTimers.set(player.sessionId, timer);
+      
+      io.to(roomId).emit('player_disconnected', {
+        playerId: player.sessionId,
+        playerName: player.name,
+        canReconnect: true,
+        timeoutMinutes: 10
+      });
+    }
+  });
+}
+
+// Remove expired player
+function removeExpiredPlayer(sessionId, roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  
+  const playerIndex = room.players.findIndex(p => p.sessionId === sessionId);
+  if (playerIndex !== -1) {
+    const player = room.players[playerIndex];
+    room.players.splice(playerIndex, 1);
+    
+    playerSessions.delete(sessionId);
+    sessionTimers.delete(sessionId);
+    
+    if (room.players.length === 0) {
+      cleanupRoom(roomId);
+    } else {
+      if (room.host === sessionId && room.players.length > 0) {
+        room.host = room.players[0].sessionId;
+        room.players[0].isHost = true;
+      }
+      
+      io.to(roomId).emit('player_removed', {
+        playerId: sessionId,
+        reason: 'session_expired'
+      });
+    }
+  }
+}
+
+// Cleanup expired sessions
+function cleanupExpiredSessions() {
+  const now = Date.now();
+  playerSessions.forEach((session, sessionId) => {
+    if (now > session.expiresAt) {
+      removeExpiredPlayer(sessionId, session.roomId);
+    }
+  });
+}
+
+// Cleanup inactive rooms
+function cleanupInactiveRooms() {
+  const now = Date.now();
+  rooms.forEach((room, roomId) => {
+    const idleTime = now - room.lastActivityAt;
+    const allDisconnected = room.players.every(p => !p.isConnected);
+    
+    if (
+      (room.state === 'ended' && idleTime > 5 * 60 * 1000) ||
+      (allDisconnected && idleTime > 10 * 60 * 1000) ||
+      (room.state === 'waiting' && now - room.createdAt > 2 * 60 * 60 * 1000)
+    ) {
+      cleanupRoom(roomId);
+    }
+  });
+}
+
+// Cleanup room completely
+function cleanupRoom(roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  
+  room.players.forEach(player => {
+    if (playerSessions.has(player.sessionId)) {
+      playerSessions.delete(player.sessionId);
+    }
+    if (sessionTimers.has(player.sessionId)) {
+      clearTimeout(sessionTimers.get(player.sessionId));
+      sessionTimers.delete(player.sessionId);
+    }
+  });
+  
+  if (room.scheduledDeletion) {
+    clearTimeout(room.scheduledDeletion);
+  }
+  
+  rooms.delete(roomId);
+  console.log(`Room ${roomId} cleaned up`);
+}
+
+// End game by host
+function endGameByHost(roomId, hostSocketId, reason) {
+  const room = rooms.get(roomId);
+  
+  if (!room) {
+    return { success: false, message: 'Room not found' };
+  }
+  
+  const hostPlayer = room.players.find(p => p.id === hostSocketId);
+  if (!hostPlayer || !hostPlayer.isHost) {
+    return { success: false, message: 'Only host can end the game' };
+  }
+  
+  if (room.gameOver && room.state === 'ended') {
+    return { success: false, message: 'Game already ended' };
+  }
+  
+  room.gameOver = true;
+  room.state = 'ended';
+  room.endedBy = 'host';
+  room.endReason = reason || 'Host ended the game';
+  room.gameEndedAt = Date.now();
+  
+  if (room.scheduledDeletion) {
+    clearTimeout(room.scheduledDeletion);
+  }
+  
+  return { 
+    success: true, 
+    room, 
+    hostName: hostPlayer.name 
+  };
+}
+
+// =====================================================================
+// SOCKET.IO CONNECTION HANDLING
+// =====================================================================
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
@@ -419,7 +610,12 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     
     const room = rooms.get(roomId);
-    socket.emit('room_created', { roomId, room: getClientSafeRoom(room, socket.id) });
+    const hostPlayer = room.players[0];
+    socket.emit('room_created', { 
+      roomId, 
+      room: getClientSafeRoom(room, socket.id),
+      sessionId: hostPlayer.sessionId
+    });
   });
   
   // Join room
@@ -428,7 +624,12 @@ io.on('connection', (socket) => {
     
     if (result.success) {
       socket.join(roomId);
-      socket.emit('room_joined', { roomId, room: getClientSafeRoom(result.room, socket.id) });
+      const joiningPlayer = result.room.players.find(p => p.id === socket.id);
+      socket.emit('room_joined', { 
+        roomId, 
+        room: getClientSafeRoom(result.room, socket.id),
+        sessionId: joiningPlayer.sessionId
+      });
       
       // Notify all players in room
       io.to(roomId).emit('player_joined', {
@@ -443,7 +644,13 @@ io.on('connection', (socket) => {
   socket.on('start_game', (roomId) => {
     const room = rooms.get(roomId);
     
-    if (!room || room.host !== socket.id) {
+    if (!room) {
+      socket.emit('error', { message: 'Room not found' });
+      return;
+    }
+    
+    const hostPlayer = room.players.find(p => p.id === socket.id);
+    if (!hostPlayer || !hostPlayer.isHost) {
       socket.emit('error', { message: 'Only host can start the game' });
       return;
     }
@@ -451,6 +658,9 @@ io.on('connection', (socket) => {
     const result = startGame(roomId);
     
     if (result.success) {
+      room.state = 'active';
+      updateRoomActivity(roomId);
+      
       // Send each player their hand privately
       room.players.forEach(player => {
         io.to(player.id).emit('game_started', {
@@ -467,6 +677,8 @@ io.on('connection', (socket) => {
     const result = playCard(roomId, socket.id, card);
     
     if (result.success) {
+      updateRoomActivity(roomId);
+      
       // Broadcast updated game state to all players
       const room = result.room;
       room.players.forEach(player => {
@@ -490,34 +702,100 @@ io.on('connection', (socket) => {
     }
   });
   
+  // Reconnect player
+  socket.on('reconnect_player', ({ sessionId, roomId }) => {
+    const session = playerSessions.get(sessionId);
+    
+    if (!session || session.roomId !== roomId) {
+      socket.emit('reconnection_failed', { reason: 'session_not_found' });
+      return;
+    }
+    
+    if (Date.now() > session.expiresAt) {
+      playerSessions.delete(sessionId);
+      socket.emit('reconnection_failed', { reason: 'session_expired' });
+      return;
+    }
+    
+    const room = rooms.get(roomId);
+    if (!room) {
+      playerSessions.delete(sessionId);
+      socket.emit('reconnection_failed', { reason: 'room_not_found' });
+      return;
+    }
+    
+    const player = room.players.find(p => p.sessionId === sessionId);
+    if (!player) {
+      playerSessions.delete(sessionId);
+      socket.emit('reconnection_failed', { reason: 'player_not_found' });
+      return;
+    }
+    
+    if (sessionTimers.has(sessionId)) {
+      clearTimeout(sessionTimers.get(sessionId));
+      sessionTimers.delete(sessionId);
+    }
+    
+    player.id = socket.id;
+    player.isConnected = true;
+    player.disconnectedAt = null;
+    player.lastActivity = Date.now();
+    
+    playerSessions.delete(sessionId);
+    
+    socket.join(roomId);
+    
+    socket.emit('reconnection_successful', {
+      room: getClientSafeRoom(room, socket.id),
+      message: 'Reconnected successfully!'
+    });
+    
+    socket.to(roomId).emit('player_reconnected', {
+      playerId: sessionId,
+      playerName: player.name
+    });
+    
+    updateRoomActivity(roomId);
+  });
+  
+  // Host end game
+  socket.on('host_end_game', ({ roomId, reason }) => {
+    const now = Date.now();
+    const lastEnd = hostEndCooldowns.get(socket.id);
+    
+    if (lastEnd && now - lastEnd < END_GAME_COOLDOWN) {
+      socket.emit('game_end_error', { 
+        message: 'Please wait before ending another game',
+        cooldownRemaining: Math.ceil((END_GAME_COOLDOWN - (now - lastEnd)) / 1000)
+      });
+      return;
+    }
+    
+    const result = endGameByHost(roomId, socket.id, reason);
+    
+    if (result.success) {
+      hostEndCooldowns.set(socket.id, now);
+      
+      io.to(roomId).emit('game_ended_by_host', {
+        reason: reason || 'Host ended the game',
+        endedBy: result.hostName,
+        endedAt: Date.now()
+      });
+      
+      setTimeout(() => {
+        cleanupRoom(roomId);
+      }, 30000);
+      
+      socket.emit('game_end_success', { message: 'Game ended successfully' });
+    } else {
+      socket.emit('game_end_error', { message: result.message });
+    }
+  });
+  
   // Disconnect
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
-    
-    // Find and remove player from any room
-    rooms.forEach((room, roomId) => {
-      const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      
-      if (playerIndex !== -1) {
-        room.players.splice(playerIndex, 1);
-        
-        // If room is empty, delete it
-        if (room.players.length === 0) {
-          rooms.delete(roomId);
-        } else {
-          // If host left, assign new host
-          if (room.host === socket.id && room.players.length > 0) {
-            room.host = room.players[0].id;
-            room.players[0].isHost = true;
-          }
-          
-          // Notify remaining players
-          io.to(roomId).emit('player_left', {
-            room: getClientSafeRoom(room, null)
-          });
-        }
-      }
-    });
+    handlePlayerDisconnect(socket.id);
   });
 });
 
@@ -548,4 +826,53 @@ function getClientSafeRoom(room, playerId) {
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Session timeout: ${SESSION_TIMEOUT / 1000 / 60} minutes`);
+  console.log(`Cleanup interval: ${CLEANUP_INTERVAL / 1000} seconds`);
 });
+
+// =====================================================================
+// CLEANUP & MONITORING
+// =====================================================================
+
+// Cleanup intervals
+setInterval(() => {
+  cleanupExpiredSessions();
+  cleanupInactiveRooms();
+  
+  // Clean up old cooldowns
+  const now = Date.now();
+  hostEndCooldowns.forEach((time, hostId) => {
+    if (now - time > END_GAME_COOLDOWN) {
+      hostEndCooldowns.delete(hostId);
+    }
+  });
+}, CLEANUP_INTERVAL);
+
+// Memory monitoring (every 5 minutes)
+setInterval(() => {
+  const usage = process.memoryUsage();
+  const stats = {
+    timestamp: new Date().toISOString(),
+    heapUsed: Math.round(usage.heapUsed / 1024 / 1024) + ' MB',
+    heapTotal: Math.round(usage.heapTotal / 1024 / 1024) + ' MB',
+    rooms: rooms.size,
+    sessions: playerSessions.size,
+    activeGames: Array.from(rooms.values()).filter(r => r.gameStarted && !r.gameOver).length,
+    waitingRooms: Array.from(rooms.values()).filter(r => !r.gameStarted).length,
+    endedGames: Array.from(rooms.values()).filter(r => r.gameOver).length,
+    totalPlayers: Array.from(rooms.values())
+      .reduce((sum, r) => sum + r.players.length, 0),
+    connectedPlayers: Array.from(rooms.values())
+      .reduce((sum, r) => sum + r.players.filter(p => p.isConnected).length, 0)
+  };
+  
+  console.log('📊 Server Stats:', stats);
+  
+  // Alert if memory too high
+  if (usage.heapUsed / 1024 / 1024 > 500) {
+    console.error('⚠️  HIGH MEMORY USAGE! Running aggressive cleanup...');
+    cleanupInactiveRooms();
+  }
+}, 5 * 60 * 1000);
+
+console.log('✅ Cleanup and monitoring initialized');
